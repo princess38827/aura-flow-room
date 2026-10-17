@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080d14">
+  <meta name="description" content="Aura Flow Room — an interactive four-persona multi-agent workflow demo.">
+  <link rel="icon" href="data:,">
+  <title>Aura Flow Room — Four-agent workspace</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080c12;
+      --panel: #0d131c;
+      --panel-2: #111925;
+      --panel-3: #151f2c;
+      --line: rgba(160, 184, 206, .13);
+      --line-strong: rgba(160, 184, 206, .22);
+      --text: #edf4fb;
+      --muted: #8b9bad;
+      --faint: #627386;
+      --mint: #72e4cf;
+      --mint-dark: #173e3a;
+      --blue: #85cfff;
+      --violet: #b9a6ff;
+      --rose: #ff9fcb;
+      --amber: #ffc878;
+      --shadow: 0 26px 100px rgba(0, 0, 0, .42);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    * { box-sizing: border-box; }
+    html { min-width: 320px; background: var(--bg); }
+    body {
+      min-height: 100svh; margin: 0; padding: 18px;
+      color: var(--text);
+      background: radial-gradient(ellipse at 70% -12%, rgba(59, 112, 135, .16), transparent 36%),
+                  radial-gradient(ellipse at 0% 100%, rgba(83, 70, 141, .10), transparent 34%), var(--bg);
+    }
+    button, textarea { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, textarea:focus-visible { outline: 2px solid rgba(114, 228, 207, .72); outline-offset: 3px; }
+    .app-shell {
+      width: min(1640px, 100%); height: min(1020px, calc(100svh - 36px)); min-height: 760px;
+      display: grid; grid-template-columns: 216px minmax(0, 1fr); margin: 0 auto; overflow: hidden;
+      border: 1px solid rgba(170, 198, 219, .13); border-radius: 22px; background: #0b1119; box-shadow: var(--shadow);
+    }
+    .sidebar {
+      min-width: 0; display: flex; flex-direction: column; padding: 23px 14px 15px;
+      border-right: 1px solid rgba(154, 180, 201, .11);
+      background: linear-gradient(178deg, rgba(17, 27, 39, .98), rgba(11, 18, 27, .98) 55%, rgba(12, 18, 29, .98));
+    }
+    .brand { display: flex; align-items: center; gap: 10px; padding: 2px 7px 27px; }
+    .brand-mark { position: relative; width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid rgba(114, 228, 207, .42); border-radius: 10px; color: var(--mint); background: linear-gradient(145deg, rgba(114, 228, 207, .15), rgba(114, 228, 207, .035)); box-shadow: inset 0 0 16px rgba(114, 228, 207, .06), 0 0 20px rgba(82, 193, 177, .08); }
+    .brand-mark svg { width: 18px; height: 18px; }
+    .brand-name { font-size: 10px; font-weight: 780; letter-spacing: .16em; line-height: 1.45; }
+    .brand-name span { display: block; margin-top: 2px; color: #73869a; font-size: 8px; font-weight: 600; letter-spacing: .13em; }
+    .side-label { margin: 0 9px 9px; color: #66788d; font-size: 8px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+    .side-nav { display: grid; gap: 4px; }
+    .nav-item, .flow-nav { width: 100%; display: flex; align-items: center; gap: 10px; border: 0; cursor: pointer; text-align: left; transition: .18s ease; }
+    .nav-item { min-height: 39px; padding: 0 10px; border-radius: 9px; background: transparent; color: #94a5b7; font-size: 11px; }
+    .nav-item:hover, .flow-nav:hover { color: #e9f4fb; background: rgba(255,255,255,.045); }
+    .nav-item.active { color: #eafffa; background: rgba(87, 201, 181, .11); box-shadow: inset 2px 0 #70e2ce; }
+    .nav-item svg { flex: 0 0 15px; color: #8497a9; }
+    .nav-item.active svg { color: var(--mint); }
+    .nav-count { margin-left: auto; color: #627386; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .side-divider { height: 1px; margin: 20px 7px 18px; background: var(--line); }
+    .flows-title { display: flex; align-items: center; justify-content: space-between; margin-right: 7px; }
+    .add-flow { width: 23px; height: 23px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 7px; background: transparent; color: #a6b6c6; cursor: pointer; }
+    .add-flow:hover { border-color: rgba(114,228,207,.5); color: var(--mint); }
+    .flow-nav { min-height: 36px; padding: 0 10px; border-radius: 8px; background: transparent; color: #8395a8; font-size: 10px; }
+    .flow-nav.active { color: #edf8ff; background: rgba(255,255,255,.065); }
+    .flow-dot { width: 7px; height: 7px; flex: 0 0 7px; border: 1px solid currentColor; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
+    .flow-nav[data-mode="balanced"] .flow-dot { color: var(--mint); }
+    .flow-nav[data-mode="research"] .flow-dot { color: var(--blue); }
+    .flow-nav[data-mode="strategy"] .flow-dot { color: var(--violet); }
+    .flow-nav[data-mode="creative"] .flow-dot { color: var(--rose); }
+    .sidebar-spacer { flex: 1; }
+    .demo-card { margin: 18px 1px 13px; padding: 12px 11px; border: 1px solid rgba(114,228,207,.18); border-radius: 11px; background: linear-gradient(135deg, rgba(29, 75, 72, .22), rgba(14, 26, 36, .7)); }
+    .demo-card-top { display: flex; align-items: center; gap: 7px; color: #b9f7e9; font-size: 9px; font-weight: 750; }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 10px rgba(114,228,207,.68); }
+    .demo-card p { margin: 7px 0 0; color: #8499a7; font-size: 9px; line-height: 1.55; }
+    .profile { display: flex; align-items: center; gap: 9px; padding: 12px 7px 0; border-top: 1px solid var(--line); }
+    .profile-avatar { width: 27px; height: 27px; display: grid; place-items: center; border: 1px solid rgba(114,228,207,.15); border-radius: 8px; background: #172a37; color: #c4f7ee; font-size: 9px; font-weight: 800; }
+    .profile-name { color: #ccd8e4; font-size: 9px; font-weight: 680; }
+    .profile-meta { margin-top: 2px; color: #66788d; font-size: 8px; }
+
+    .workspace { min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 298px; }
+    .center-column { min-width: 0; min-height: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: radial-gradient(ellipse at 52% 0%, rgba(46, 82, 107, .09), transparent 43%), #0b1119; }
+    .topbar { flex: 0 0 60px; display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 0 27px; border-bottom: 1px solid var(--line); background: rgba(10,16,24,.72); }
+    .crumbs { display: flex; align-items: center; gap: 9px; color: #64768a; font-size: 9px; letter-spacing: .13em; text-transform: uppercase; }
+    .crumb-mark { width: 19px; height: 19px; display: grid; place-items: center; border: 1px solid rgba(114,228,207,.22); border-radius: 6px; color: var(--mint); background: rgba(114,228,207,.07); }
+    .crumbs strong { color: #b7c5d1; font-weight: 680; }
+    .top-actions { display: flex; align-items: center; gap: 9px; }
+    .demo-pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid rgba(114,228,207,.2); border-radius: 99px; background: rgba(57, 128, 118, .09); color: #9cd9cf; font-size: 8px; font-weight: 750; letter-spacing: .06em; white-space: nowrap; }
+    .demo-pill .live-dot { width: 5px; height: 5px; box-shadow: none; }
+    .icon-button { width: 31px; height: 31px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 8px; background: rgba(255,255,255,.02); color: #95a7b9; cursor: pointer; transition: .18s; }
+    .icon-button:hover { border-color: rgba(114,228,207,.35); color: var(--mint); background: rgba(114,228,207,.06); }
+    .center-scroll { min-height: 0; flex: 1; overflow-y: auto; scrollbar-color: #293746 transparent; scrollbar-width: thin; }
+    .center-content { width: min(900px, 100%); margin: 0 auto; padding: 27px 34px 25px; }
+    .eyebrow { display: flex; align-items: center; gap: 8px; color: #83bdb4; font-size: 8px; font-weight: 800; letter-spacing: .19em; text-transform: uppercase; }
+    .eyebrow-mark { width: 6px; height: 6px; border-radius: 2px; transform: rotate(45deg); background: var(--mint); box-shadow: 0 0 11px rgba(114,228,207,.62); }
+    h1 { margin: 10px 0 7px; color: #eff7fc; font-size: clamp(27px, 3vw, 39px); font-weight: 630; letter-spacing: -.055em; line-height: 1.07; }
+    .intro-copy { max-width: 610px; margin: 0; color: #8b9bad; font-size: 11px; line-height: 1.65; }
+    .mode-row { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 19px 0 13px; }
+    .mode-button { display: inline-flex; align-items: center; gap: 7px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #0d141d; color: #8798aa; font-size: 9px; cursor: pointer; transition: .18s; }
+    .mode-button:hover { border-color: var(--line-strong); color: #d5e4ee; transform: translateY(-1px); }
+    .mode-button.active { border-color: rgba(114,228,207,.35); background: rgba(68, 155, 143, .12); color: #a8eee0; box-shadow: inset 0 0 18px rgba(114,228,207,.025); }
+    .mode-swatch { width: 6px; height: 6px; border-radius: 50%; background: #718397; }
+    .mode-button[data-mode="balanced"] .mode-swatch { background: var(--mint); }
+    .mode-button[data-mode="research"] .mode-swatch { background: var(--blue); }
+    .mode-button[data-mode="strategy"] .mode-swatch { background: var(--violet); }
+    .mode-button[data-mode="creative"] .mode-swatch { background: var(--rose); }
+
+    .flow-card { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(125deg, rgba(18,28,39,.98), rgba(13,20,29,.98)); box-shadow: 0 8px 28px rgba(0,0,0,.12); }
+    .flow-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px 8px; }
+    .section-label { color: #73869a; font-size: 8px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    .flow-state { display: flex; align-items: center; gap: 7px; color: #8193a5; font-size: 8px; white-space: nowrap; }
+    .flow-state .live-dot { width: 5px; height: 5px; box-shadow: none; }
+    .flow-map { display: grid; grid-template-columns: minmax(98px,1fr) 32px minmax(95px,.9fr) 32px minmax(110px,1.12fr) 32px minmax(100px,1fr); align-items: center; padding: 8px 13px 13px; }
+    .route-node { min-width: 0; min-height: 56px; display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: rgba(7,13,20,.55); transition: border-color .25s, background .25s, box-shadow .25s; }
+    .route-node.active { border-color: rgba(114,228,207,.5); background: rgba(53,119,112,.16); box-shadow: 0 0 16px rgba(86,196,176,.08); }
+    .route-node.done { border-color: rgba(114,228,207,.28); background: rgba(38,83,79,.18); }
+    .route-icon { width: 26px; height: 26px; flex: 0 0 26px; display: grid; place-items: center; border-radius: 7px; color: #a0b3c4; background: rgba(118,146,170,.11); }
+    .route-icon.nova-icon { color: var(--mint); background: rgba(114,228,207,.12); }
+    .route-icon.finish-icon { color: var(--violet); background: rgba(185,166,255,.11); }
+    .route-label { overflow: hidden; color: #c9d7e2; font-size: 8px; font-weight: 730; text-overflow: ellipsis; white-space: nowrap; }
+    .route-meta { overflow: hidden; margin-top: 3px; color: #708296; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+    .route-link { height: 1px; position: relative; background: #2a3a48; }
+    .route-link::after { content: ""; position: absolute; top: -3px; right: -1px; width: 6px; height: 6px; border-top: 1px solid #52697c; border-right: 1px solid #52697c; transform: rotate(45deg); }
+    .route-link.lit { background: linear-gradient(90deg, #31675f, #70d8c5); box-shadow: 0 0 8px rgba(114,228,207,.18); }
+    .flow-note { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 14px; border-top: 1px solid var(--line); color: #75879a; font-size: 8px; }
+    .flow-note strong { color: #b4c4d1; font-weight: 650; }
+    .flow-note-right { display: flex; align-items: center; gap: 6px; color: #6d8192; white-space: nowrap; }
+    .tiny-lock { color: #718296; }
+
+    .task-picker { margin-top: 16px; }
+    .picker-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 1px 8px; }
+    .picker-title { color: #aab9c7; font-size: 9px; font-weight: 720; }
+    .picker-hint { color: #65778a; font-size: 8px; }
+    .task-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 7px; }
+    .task-preset { min-width: 0; min-height: 53px; display: flex; align-items: center; gap: 8px; padding: 8px 9px; border: 1px solid var(--line); border-radius: 9px; background: rgba(15,23,33,.88); color: #a1b1bf; text-align: left; cursor: pointer; transition: .18s; }
+    .task-preset:hover { border-color: rgba(114,228,207,.26); background: #111d27; }
+    .task-preset.active { border-color: rgba(114,228,207,.35); background: rgba(43,97,91,.18); color: #d8f8f2; }
+    .task-icon { width: 25px; height: 25px; flex: 0 0 25px; display: grid; place-items: center; border-radius: 7px; background: rgba(127,151,174,.1); color: #a3bccd; }
+    .task-preset.active .task-icon { color: var(--mint); background: rgba(114,228,207,.12); }
+    .task-name { display: block; overflow: hidden; font-size: 8px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .task-caption { display: block; margin-top: 3px; overflow: hidden; color: #687a8c; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+
+    .run-area { margin-top: 14px; }
+    .welcome-card { position: relative; overflow: hidden; padding: 17px 18px; border: 1px solid var(--line); border-radius: 12px; background: radial-gradient(ellipse at 88% 6%, rgba(82,161,149,.11), transparent 34%), linear-gradient(120deg, #101923, #0e151f 68%, #121623); }
+    .welcome-card::after { content: ""; position: absolute; width: 160px; height: 160px; right: -49px; top: -89px; border: 1px solid rgba(114,228,207,.13); border-radius: 50%; box-shadow: 0 0 0 19px rgba(114,228,207,.025), 0 0 0 39px rgba(153,137,240,.02); pointer-events: none; }
+    .welcome-heading { display: flex; align-items: center; gap: 7px; color: #8fcfc3; font-size: 8px; font-weight: 780; letter-spacing: .12em; text-transform: uppercase; }
+    .welcome-title { margin: 10px 0 5px; color: #e5f0f7; font-size: 16px; font-weight: 640; letter-spacing: -.025em; }
+    .welcome-copy { max-width: 600px; margin: 0; color: #8596a7; font-size: 9px; line-height: 1.6; }
+    .sample-prompt { display: flex; align-items: center; justify-content: space-between; gap: 13px; margin-top: 13px; padding: 9px 10px; border: 1px solid rgba(156,182,202,.12); border-radius: 8px; background: rgba(6,11,17,.43); }
+    .sample-copy { min-width: 0; }
+    .sample-copy small { display: block; margin-bottom: 4px; color: #687b8c; font-size: 7px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    .sample-copy span { display: block; overflow: hidden; color: #b4c4d0; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+    .sample-button { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; padding: 7px 9px; border: 1px solid rgba(114,228,207,.2); border-radius: 7px; background: rgba(114,228,207,.1); color: #bdf6e9; font-size: 8px; font-weight: 700; cursor: pointer; transition: .18s; }
+    .sample-button:hover { border-color: rgba(114,228,207,.42); background: rgba(114,228,207,.17); }
+    .run-list { display: grid; gap: 11px; }
+    .run-card { overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: #0e151f; animation: rise .26s ease both; }
+    .run-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 13px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.012); }
+    .run-id { display: flex; align-items: center; gap: 8px; color: #8fa0b1; font-size: 8px; font-weight: 780; letter-spacing: .12em; text-transform: uppercase; }
+    .run-id-mark { width: 18px; height: 18px; display: grid; place-items: center; border: 1px solid rgba(114,228,207,.16); border-radius: 6px; background: rgba(114,228,207,.08); color: var(--mint); }
+    .run-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 7px; border: 1px solid rgba(255,200,120,.17); border-radius: 99px; background: rgba(255,200,120,.055); color: #d6b275; font-size: 7px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+    .run-badge .live-dot { width: 5px; height: 5px; background: var(--amber); box-shadow: 0 0 7px rgba(255,200,120,.4); }
+    .run-badge.done { border-color: rgba(114,228,207,.2); background: rgba(114,228,207,.07); color: #9ce3d5; }
+    .run-badge.done .live-dot { background: var(--mint); box-shadow: none; }
+    .task-block { padding: 11px 14px; border-bottom: 1px solid var(--line); background: rgba(7,12,18,.44); }
+    .task-meta { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; color: #6e8194; font-size: 7px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .task-text { color: #c7d4df; font-size: 9px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .run-progress { display: flex; align-items: center; gap: 8px; padding: 9px 14px 2px; color: #9aabbb; font-size: 8px; }
+    .progress-ring { width: 11px; height: 11px; border: 1.5px solid #344654; border-top-color: var(--mint); border-radius: 50%; animation: spin .8s linear infinite; }
+    .run-progress.complete .progress-ring { position: relative; border: 0; background: rgba(114,228,207,.15); animation: none; }
+    .run-progress.complete .progress-ring::after { content: "✓"; position: absolute; inset: -2px 0 0; color: var(--mint); font-size: 9px; text-align: center; }
+    .handoff-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 7px 14px 9px; color: #73869a; font-size: 7px; }
+    .handoff-label { margin-right: 3px; color: #627487; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .handoff-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,.025); color: #91a3b4; }
+    .handoff-chip.active { border-color: rgba(114,228,207,.3); background: rgba(114,228,207,.08); color: #b6efe4; }
+    .handoff-chip.done { border-color: rgba(114,228,207,.14); color: #88c9bf; }
+    .handoff-arrow { color: #576b7f; }
+    .agent-output-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; padding: 5px 11px 11px; }
+    .output-card { min-width: 0; min-height: 76px; padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: rgba(8,13,20,.58); transition: border-color .2s, background .2s; }
+    .output-card.active { border-color: rgba(114,228,207,.32); background: rgba(38,75,73,.16); }
+    .output-card.pending { opacity: .61; }
+    .output-top { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+    .output-avatar { width: 25px; height: 25px; flex: 0 0 25px; object-fit: cover; object-position: center 18%; border: 1px solid rgba(213,230,240,.16); border-radius: 7px; }
+    .output-name { color: #c5d4df; font-size: 8px; font-weight: 760; }
+    .output-role { margin-top: 2px; color: #75889b; font-size: 7px; }
+    .output-tag { margin-left: auto; padding: 3px 5px; border-radius: 4px; background: rgba(129,150,170,.1); color: #8194a6; font-size: 6px; font-weight: 800; letter-spacing: .07em; }
+    .output-card.active .output-tag { background: rgba(114,228,207,.1); color: #9ce5d7; }
+    .output-text { color: #92a3b3; font-size: 8px; line-height: 1.55; }
+    .output-waiting { display: flex; align-items: center; gap: 6px; color: #6f8193; font-size: 8px; }
+    .waiting-dots { display: inline-flex; gap: 3px; }
+    .waiting-dots i { width: 3px; height: 3px; border-radius: 50%; background: #9db1bf; animation: blink 1s infinite; }
+    .waiting-dots i:nth-child(2) { animation-delay: .16s; }
+    .waiting-dots i:nth-child(3) { animation-delay: .32s; }
+    .timeline { display: grid; gap: 5px; margin: 0 12px 12px; padding: 9px 10px; border: 1px solid rgba(154,180,201,.1); border-radius: 8px; background: rgba(5,10,15,.28); }
+    .timeline-title { margin-bottom: 2px; color: #667a8c; font-size: 7px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .timeline-step { display: grid; grid-template-columns: 13px 1fr auto; align-items: center; gap: 6px; color: #75889a; font-size: 7px; line-height: 1.35; }
+    .timeline-step.active { color: #bceee5; }
+    .timeline-step.done { color: #91cfc4; }
+    .timeline-mark { width: 12px; height: 12px; display: grid; place-items: center; border: 1px solid #354655; border-radius: 50%; color: #73889b; font-size: 7px; }
+    .timeline-step.active .timeline-mark { border-color: rgba(114,228,207,.56); color: var(--mint); box-shadow: 0 0 8px rgba(114,228,207,.1); }
+    .timeline-step.done .timeline-mark { border-color: rgba(114,228,207,.28); background: rgba(114,228,207,.08); color: var(--mint); }
+    .timeline-detail { color: #617386; font-size: 6px; }
+    .synthesis { margin: 0 11px 11px; padding: 11px 12px; border: 1px solid rgba(114,228,207,.2); border-radius: 9px; background: linear-gradient(120deg, rgba(26,62,60,.24), rgba(18,24,39,.6)); animation: rise .22s ease both; }
+    .synthesis-head { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+    .synthesis-icon { width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid rgba(114,228,207,.18); border-radius: 7px; background: rgba(114,228,207,.1); color: var(--mint); font-size: 8px; font-weight: 800; }
+    .synthesis-title { color: #c5e8e3; font-size: 9px; font-weight: 760; }
+    .synthesis-sub { margin-top: 2px; color: #708d91; font-size: 7px; }
+    .synthesis-text { color: #a9bac6; font-size: 8px; line-height: 1.6; white-space: pre-wrap; }
+    .synthesis-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+    .copy-button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid rgba(114,228,207,.18); border-radius: 6px; background: rgba(7,13,19,.5); color: #a4d8cf; font-size: 7px; cursor: pointer; }
+    .copy-button:hover { border-color: rgba(114,228,207,.38); background: rgba(114,228,207,.07); }
+
+    .composer-dock { flex: 0 0 auto; padding: 10px 24px 11px; border-top: 1px solid var(--line); background: rgba(10,16,24,.97); }
+    .composer { display: flex; align-items: flex-end; gap: 10px; padding: 9px 9px 8px 12px; border: 1px solid rgba(153,180,199,.19); border-radius: 11px; background: #0d151f; box-shadow: 0 6px 22px rgba(0,0,0,.15); transition: border-color .2s, box-shadow .2s; }
+    .composer:focus-within { border-color: rgba(114,228,207,.45); box-shadow: 0 0 0 3px rgba(114,228,207,.07); }
+    textarea { flex: 1; min-width: 0; min-height: 25px; max-height: 96px; resize: none; padding: 2px 0; border: 0; outline: 0; background: transparent; color: #d9e6ef; font-size: 9px; line-height: 1.5; }
+    textarea::placeholder { color: #617488; }
+    .send-button { min-width: 95px; height: 32px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 10px; border: 1px solid rgba(114,228,207,.23); border-radius: 8px; background: linear-gradient(135deg, #1d625c, #19483f); color: #d7fff5; font-size: 8px; font-weight: 750; cursor: pointer; transition: .18s; }
+    .send-button:hover { border-color: rgba(114,228,207,.5); background: linear-gradient(135deg, #267d72, #1b5a4f); }
+    .send-button:disabled { opacity: .38; cursor: not-allowed; }
+    .composer-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 2px 0; color: #64778a; font-size: 7px; }
+    .disclaimer { display: flex; align-items: center; gap: 6px; }
+    .disclaimer svg { color: #8dc8bd; }
+    .keyhint { white-space: nowrap; }
+
+    .team-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 19px 14px 14px; background: linear-gradient(180deg, #0f161f, #0b1119); }
+    .team-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 0 2px 12px; }
+    .team-title { color: #d4e0e9; font-size: 12px; font-weight: 750; letter-spacing: -.02em; }
+    .team-sub { margin-top: 4px; color: #6f8294; font-size: 8px; line-height: 1.5; }
+    .member-count { padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,.025); color: #94a8b8; font-size: 8px; font-weight: 720; white-space: nowrap; }
+    .member-list { display: grid; gap: 7px; }
+    .member-card { width: 100%; min-width: 0; display: flex; align-items: center; gap: 9px; position: relative; padding: 7px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,.018); text-align: left; cursor: pointer; transition: .18s; }
+    .member-card:hover { border-color: rgba(165,191,210,.28); background: rgba(255,255,255,.035); }
+    .member-card.selected { border-color: rgba(114,228,207,.2); background: linear-gradient(100deg, rgba(55,101,95,.12), rgba(255,255,255,.016)); }
+    .member-card.active { border-color: rgba(114,228,207,.48); background: rgba(49,111,103,.2); box-shadow: 0 0 18px rgba(114,228,207,.045); }
+    .member-card.disabled { opacity: .52; }
+    .member-card.locked { cursor: default; }
+    .member-card.locked:hover { border-color: rgba(114,228,207,.2); background: linear-gradient(100deg, rgba(55,101,95,.12), rgba(255,255,255,.016)); }
+    .member-photo-wrap { width: 48px; height: 52px; flex: 0 0 48px; position: relative; overflow: hidden; border: 1px solid rgba(189,210,224,.12); border-radius: 7px; background: #18232e; }
+    .member-photo { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center 16%; }
+    .photo-glow { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,18,27,.02), rgba(11,18,27,.52)); pointer-events: none; }
+    .member-mark { position: absolute; bottom: 4px; left: 5px; color: #f1fffd; font-size: 6px; font-weight: 850; letter-spacing: .1em; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
+    .member-info { min-width: 0; flex: 1; }
+    .member-name-row { display: flex; align-items: center; gap: 5px; }
+    .member-name { color: #d2dfe9; font-size: 9px; font-weight: 760; }
+    .coord-tag { padding: 2px 4px; border: 1px solid rgba(114,228,207,.17); border-radius: 3px; background: rgba(114,228,207,.08); color: #95d8cb; font-size: 5px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+    .member-role { margin-top: 3px; color: #8294a5; font-size: 7px; }
+    .member-description { margin-top: 3px; color: #627588; font-size: 6px; line-height: 1.4; }
+    .member-status { display: flex; align-items: center; gap: 5px; margin-top: 5px; color: #718496; font-size: 6px; }
+    .status-dot { width: 5px; height: 5px; border-radius: 50%; background: #536575; }
+    .member-card.selected .status-dot { background: #70d7c5; }
+    .member-status.running { color: #b3e9df; }
+    .member-status.running .status-dot { background: var(--mint); animation: pulse .8s infinite; }
+    .member-status.done { color: #8ad4c6; }
+    .member-status.done .status-dot { background: var(--mint); }
+    .member-status.off { color: #657789; }
+    .check-indicator { width: 15px; height: 15px; flex: 0 0 15px; display: grid; place-items: center; border: 1px solid rgba(157,180,198,.18); border-radius: 4px; color: transparent; font-size: 9px; }
+    .member-card.selected .check-indicator { border-color: rgba(114,228,207,.34); background: rgba(114,228,207,.1); color: #9ce5d8; }
+    .member-card.locked .check-indicator { border-color: rgba(114,228,207,.34); background: rgba(114,228,207,.1); color: #9ce5d8; }
+    .team-divider { height: 1px; margin: 14px 0 13px; background: var(--line); }
+    .panel-section-title { display: flex; align-items: center; gap: 6px; margin: 0 0 8px 1px; color: #718497; font-size: 7px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .guardrail-card { padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.018); }
+    .guardrail-line { display: flex; align-items: flex-start; gap: 7px; color: #8ea0b0; font-size: 7px; line-height: 1.5; }
+    .guardrail-line + .guardrail-line { margin-top: 7px; }
+    .guardrail-check { width: 14px; height: 14px; flex: 0 0 14px; display: grid; place-items: center; border-radius: 4px; background: rgba(114,228,207,.09); color: #9ae2d5; font-size: 8px; }
+    .guardrail-check.dim { background: rgba(127,148,169,.1); color: #8ca0b2; }
+    .panel-foot { margin-top: auto; padding: 11px 2px 0; color: #64778a; font-size: 7px; line-height: 1.55; }
+    .toast { position: fixed; right: 26px; bottom: 22px; z-index: 8; max-width: min(350px,calc(100vw - 28px)); padding: 10px 13px; border: 1px solid rgba(114,228,207,.2); border-radius: 8px; background: #13232c; color: #ddf9f3; font-size: 9px; box-shadow: 0 12px 30px rgba(0,0,0,.35); opacity: 0; transform: translateY(7px); pointer-events: none; transition: opacity .2s,transform .2s; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    [hidden] { display: none !important; }
+    @keyframes rise { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
+    @keyframes blink { 0%,70%,100% { opacity: .25; transform: translateY(0); } 35% { opacity: 1; transform: translateY(-2px); } }
+    @media (min-width: 1500px) { .workspace { grid-template-columns: minmax(0,1fr) 315px; } .center-content { padding-left: 42px; padding-right: 42px; } .team-panel { padding-left: 17px; padding-right: 17px; } }
+    @media (max-width: 1190px) {
+      .app-shell { grid-template-columns: 196px minmax(0,1fr); }
+      .workspace { grid-template-columns: minmax(0,1fr) 270px; }
+      .center-content { padding-left: 23px; padding-right: 23px; }
+      .topbar { padding-left: 21px; padding-right: 21px; }
+      .flow-map { grid-template-columns: minmax(82px,1fr) 21px minmax(80px,.9fr) 21px minmax(90px,1.05fr) 21px minmax(86px,1fr); padding-left: 9px; padding-right: 9px; }
+      .route-node { gap: 6px; padding: 6px; }
+      .route-icon { width: 23px; height: 23px; flex-basis: 23px; }
+      .team-panel { padding-left: 11px; padding-right: 11px; }
+    }
+    @media (max-width: 980px) {
+      body { padding: 12px; }
+      .app-shell { height: auto; min-height: calc(100svh - 24px); grid-template-columns: 180px minmax(0,1fr); overflow: hidden; }
+      .workspace { grid-template-columns: minmax(0,1fr); }
+      .center-column { min-height: 820px; border-right: 0; }
+      .team-panel { display: block; border-top: 1px solid var(--line); padding: 16px 21px; }
+      .team-head { padding-bottom: 10px; }
+      .member-list { grid-template-columns: repeat(4,minmax(0,1fr)); }
+      .member-card { align-items: flex-start; flex-direction: column; gap: 7px; min-height: 158px; }
+      .member-photo-wrap { width: 100%; height: 83px; flex: 0 0 auto; }
+      .member-info { width: 100%; }
+      .check-indicator { position: absolute; top: 8px; right: 8px; }
+      .team-divider, .guardrail-card, .panel-section-title { display: none; }
+      .panel-foot { padding-top: 9px; }
+    }
+    @media (max-width: 680px) {
+      body { padding: 0; background: #080c12; }
+      .app-shell { width: 100%; min-height: 100svh; height: auto; display: block; overflow: visible; border: 0; border-radius: 0; box-shadow: none; }
+      .sidebar { min-height: 51px; display: flex; flex-direction: row; align-items: center; gap: 10px; padding: 9px 12px; border-right: 0; border-bottom: 1px solid var(--line); }
+      .brand { flex: 0 0 auto; padding: 0 4px 0 0; }
+      .brand-mark { width: 29px; height: 29px; }
+      .brand-name { font-size: 8px; }
+      .brand-name span { display: none; }
+      .side-label, .side-divider, .flows-title, .sidebar-spacer, .demo-card, .profile { display: none; }
+      .side-nav { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 3px; }
+      .nav-item { width: 34px; min-height: 33px; justify-content: center; padding: 0; border-radius: 8px; font-size: 0; }
+      .nav-item svg { flex-basis: 16px; }
+      .nav-count { display: none; }
+      .sidebar > .side-nav[aria-label="Flow presets"] { display: none; }
+      .workspace { display: flex; flex-direction: column; }
+      .center-column { min-height: 0; min-height: calc(100svh - 51px); }
+      .topbar { flex-basis: 49px; padding: 0 13px; }
+      .crumbs { gap: 6px; font-size: 7px; }
+      .demo-pill { padding: 6px 7px; font-size: 7px; }
+      .center-scroll { overflow: visible; }
+      .center-content { padding: 22px 13px 16px; }
+      h1 { font-size: 30px; }
+      .intro-copy { font-size: 10px; }
+      .mode-row { gap: 5px; margin: 14px 0 11px; }
+      .mode-button { padding: 7px 8px; font-size: 8px; }
+      .flow-card-head { padding: 10px 10px 7px; }
+      .flow-map { grid-template-columns: 1fr; gap: 5px; padding: 6px 9px 9px; }
+      .route-node { min-height: 43px; padding: 6px 8px; }
+      .route-link { width: 1px; height: 8px; margin-left: 20px; }
+      .route-link::after { top: auto; right: -3px; bottom: 0; transform: rotate(135deg); }
+      .flow-note { align-items: flex-start; flex-direction: column; padding: 8px 10px; font-size: 7px; }
+      .task-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .task-preset { min-height: 48px; }
+      .task-name { font-size: 8px; }
+      .task-caption { font-size: 6px; }
+      .welcome-card { padding: 14px 12px; }
+      .welcome-title { font-size: 15px; }
+      .welcome-copy { font-size: 8px; }
+      .sample-prompt { align-items: flex-start; flex-direction: column; gap: 8px; }
+      .sample-button { align-self: flex-start; }
+      .composer-dock { position: sticky; bottom: 0; z-index: 4; padding: 8px 11px max(9px, env(safe-area-inset-bottom)); }
+      .composer-meta { font-size: 6px; }
+      .keyhint { display: none; }
+      .team-panel { padding: 14px 12px 18px; }
+      .member-list { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+      .member-card { min-height: 146px; padding: 6px; }
+      .member-photo-wrap { height: 76px; }
+      .member-name { font-size: 8px; }
+      .member-role { font-size: 7px; }
+      .member-description { font-size: 6px; }
+      .member-status { font-size: 6px; }
+      .agent-output-grid { grid-template-columns: 1fr; }
+      .handoff-strip { padding-left: 11px; }
+      .timeline { margin-left: 10px; margin-right: 10px; }
+      .toast { right: 12px; bottom: 12px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+    @media (max-height: 720px) and (min-width: 981px) {
+      body { padding: 8px; }
+      .app-shell { height: calc(100svh - 16px); min-height: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell" aria-label="Aura Flow Room four-agent demo">
+    <aside class="sidebar" aria-label="Workspace navigation">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5 14.2 9.8 20.5 12l-6.3 2.2L12 20.5l-2.2-6.3L3.5 12l6.3-2.2L12 3.5Z" stroke="currentColor" stroke-width="1.35"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/></svg></div>
+        <div class="brand-name">AURA FLOW<span>COLLABORATION STUDIO</span></div>
+      </div>
+      <div class="side-label">Workspace</div>
+      <nav class="side-nav" aria-label="Main navigation">
+        <button class="nav-item active" type="button" aria-current="page" title="Flow room"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" stroke="currentColor" stroke-width="1.4"/><path d="M10 7.5h4M7.5 10v4M16.5 10v4M10 16.5h4" stroke="currentColor" stroke-width="1.2"/></svg>Flow room<span class="nav-count">01</span></button>
+        <button class="nav-item" id="runsNav" type="button" title="Runs"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4.5h14v15H5zM8 8h8M8 12h5M8 16h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Run history<span class="nav-count" id="runCount">00</span></button>
+      </nav>
+      <div class="side-divider"></div>
+      <div class="flows-title"><div class="side-label">Flow presets</div><button class="add-flow" id="newFlowSmall" type="button" aria-label="Clear runs and start a new flow" title="New flow">+</button></div>
+      <nav class="side-nav" aria-label="Flow presets">
+        <button class="flow-nav active" type="button" data-mode="balanced"><span class="flow-dot"></span>Balanced team</button>
+        <button class="flow-nav" type="button" data-mode="research"><span class="flow-dot"></span>Research lens</button>
+        <button class="flow-nav" type="button" data-mode="strategy"><span class="flow-dot"></span>Strategy room</button>
+        <button class="flow-nav" type="button" data-mode="creative"><span class="flow-dot"></span>Creative sprint</button>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="demo-card"><div class="demo-card-top"><span class="live-dot"></span>Local demo mode</div><p>Scripted persona examples only. No model, web search, or external service is connected.</p></div>
+      <div class="profile"><div class="profile-avatar">AF</div><div><div class="profile-name">Aura Flow</div><div class="profile-meta">Local workspace</div></div></div>
+    </aside>
+
+    <div class="workspace">
+      <section class="center-column" aria-label="Flow composer and run output">
+        <header class="topbar">
+          <div class="crumbs"><span class="crumb-mark" aria-hidden="true">✳</span><span>Workspace</span><span aria-hidden="true">/</span><strong>Flow room</strong></div>
+          <div class="top-actions"><div class="demo-pill"><span class="live-dot"></span>DEMO · NOT AI-BACKED</div><button class="icon-button" id="resetButton" type="button" aria-label="Clear all runs" title="Clear all runs"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4.8 10.1a7.3 7.3 0 1 1-.1 4.2M4.8 10.1V5.9M4.8 10.1H9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </header>
+        <div class="center-scroll" id="centerScroll">
+          <div class="center-content">
+            <div class="eyebrow"><span class="eyebrow-mark"></span>Four-agent orchestration</div>
+            <h1>Four minds. One clear next step.</h1>
+            <p class="intro-copy">Give Nova a brief. Lyra, Atlas, and Sage contribute through distinct roles, then Nova brings the perspectives into a review-ready synthesis.</p>
+
+            <div class="mode-row" role="group" aria-label="Choose a flow preset">
+              <button class="mode-button active" type="button" data-mode="balanced" aria-pressed="true"><span class="mode-swatch"></span>Balanced</button>
+              <button class="mode-button" type="button" data-mode="research" aria-pressed="false"><span class="mode-swatch"></span>Research lens</button>
+              <button class="mode-button" type="button" data-mode="strategy" aria-pressed="false"><span class="mode-swatch"></span>Strategy room</button>
+              <button class="mode-button" type="button" data-mode="creative" aria-pressed="false"><span class="mode-swatch"></span>Creative sprint</button>
+            </div>
+
+            <section class="flow-card" aria-label="Live workflow map">
+              <div class="flow-card-head"><span class="section-label">Workflow · visible handoffs</span><span class="flow-state"><span class="live-dot"></span><span id="readyCount">4 personas ready</span></span></div>
+              <div class="flow-map" id="flowMap" aria-label="Brief to Nova, specialists, then Nova synthesis">
+                <div class="route-node" id="mapBrief"><div class="route-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4.5h10a2 2 0 0 1 2 2v13H5v-13a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.5"/><path d="M8.5 9h7M8.5 12.5h7M8.5 16h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div><div><div class="route-label">Your brief</div><div class="route-meta">Editable prompt</div></div></div>
+                <div class="route-link" id="linkBrief"></div>
+                <div class="route-node" id="mapNova"><div class="route-icon nova-icon"><span style="font-size:10px;font-weight:850">N</span></div><div><div class="route-label">Nova</div><div class="route-meta">Coordinator</div></div></div>
+                <div class="route-link" id="linkNova"></div>
+                <div class="route-node" id="mapSpecialists"><div class="route-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.4"/><circle cx="16" cy="8" r="3" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="16" r="3" stroke="currentColor" stroke-width="1.4"/><circle cx="16" cy="16" r="3" stroke="currentColor" stroke-width="1.4"/></svg></div><div><div class="route-label">Specialists</div><div class="route-meta" id="specialistMeta">Lyra · Atlas · Sage</div></div></div>
+                <div class="route-link" id="linkSynthesis"></div>
+                <div class="route-node" id="mapSynthesis"><div class="route-icon finish-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12.5 4.2 4L19 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><div class="route-label">Synthesis</div><div class="route-meta">Nova reviews inputs</div></div></div>
+              </div>
+              <div class="flow-note"><span><strong>Nova always coordinates.</strong> Specialists receive the brief one at a time in this demo.</span><span class="flow-note-right"><svg class="tiny-lock" width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.5"/></svg>Local-only</span></div>
+            </section>
+
+            <section class="task-picker" aria-label="Task presets">
+              <div class="picker-head"><span class="picker-title">Start from a task preset</span><span class="picker-hint">Loads an editable prompt</span></div>
+              <div class="task-grid" role="group" aria-label="Task prompt presets">
+                <button class="task-preset" type="button" data-task="launch" aria-pressed="false"><span class="task-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 14 9.5 21 12l-7 2.5L12 21l-2-6.5L3 12l7-2.5L12 3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></span><span><span class="task-name">Launch plan</span><span class="task-caption">Go to market</span></span></button>
+                <button class="task-preset" type="button" data-task="research" aria-pressed="false"><span class="task-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="m15.5 15.5 5 5M8 10.5h5M10.5 8v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span><span><span class="task-name">Research brief</span><span class="task-caption">Map the unknowns</span></span></button>
+                <button class="task-preset" type="button" data-task="decision" aria-pressed="false"><span class="task-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8m7.2 7.2 2.8 2.8m0-12.8-2.8 2.8m-7.2 7.2-2.8 2.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5"/></svg></span><span><span class="task-name">Decision review</span><span class="task-caption">Compare trade-offs</span></span></button>
+                <button class="task-preset" type="button" data-task="creative" aria-pressed="false"><span class="task-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 14.5c-1.8-1.1-3-3-3-5.2a7 7 0 1 1 14 0c0 2.2-1.2 4.1-3 5.2-.8.5-1.3 1.4-1.3 2.3h-5.4c0-.9-.5-1.8-1.3-2.3ZM9.5 20h5M10 17h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><span class="task-name">Creative concept</span><span class="task-caption">Find a fresh angle</span></span></button>
+              </div>
+            </section>
+
+            <div class="run-area" id="runArea" aria-live="polite">
+              <section class="welcome-card" id="welcomeCard">
+                <div class="welcome-heading"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Ready to orchestrate</div>
+                <h2 class="welcome-title">Start with the outcome you want.</h2>
+                <p class="welcome-copy">Write a question, project brief, or rough idea. Each run animates the handoffs and displays example notes for review. All output is scripted demo text—not generated by AI and not independently verified.</p>
+                <div class="sample-prompt"><div class="sample-copy"><small>Try a sample flow</small><span>Plan a thoughtful launch for a neighborhood refill shop.</span></div><button class="sample-button" id="sampleButton" type="button">Load sample <span aria-hidden="true">↗</span></button></div>
+              </section>
+              <div class="run-list" id="runList"></div>
+            </div>
+          </div>
+        </div>
+        <div class="composer-dock">
+          <form class="composer" id="flowForm">
+            <label class="sr-only" for="flowInput">Describe a task for Nova and the team</label>
+            <textarea id="flowInput" rows="1" maxlength="1200" placeholder="Describe the outcome you want the team to work through…" autocomplete="off"></textarea>
+            <button class="send-button" id="runButton" type="submit" aria-label="Run demo flow" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12 19 5l-4.2 14-3.1-5-6.7-2Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="m11.7 14 3.8-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Run demo</button>
+          </form>
+          <div class="composer-meta"><span class="disclaimer"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.5"/></svg>Local scripted simulation · no connected AI models</span><span class="keyhint">Enter to run · Shift + Enter for a new line</span></div>
+        </div>
+      </section>
+
+      <aside class="team-panel" aria-label="Agent persona selection">
+        <div class="team-head"><div><div class="team-title">The team</div><div class="team-sub">Toggle specialists. Nova coordinates every run.</div></div><span class="member-count" id="memberCount">4 / 4</span></div>
+        <div class="member-list" id="memberList">
+          <button class="member-card selected locked" type="button" data-agent="nova" aria-pressed="true" aria-label="Nova, coordinator, always included">
+            <span class="member-photo-wrap"><img class="member-photo" src="assets/nova.jpg" alt=""/><span class="photo-glow"></span><span class="member-mark">NOVA</span></span><span class="member-info"><span class="member-name-row"><span class="member-name">Nova</span><span class="coord-tag">Lead</span></span><span class="member-role">Coordinator</span><span class="member-description">Frames the brief, routes handoffs, and synthesizes the review.</span><span class="member-status" data-status-for="nova"><i class="status-dot"></i><span>Always included</span></span></span><span class="check-indicator" aria-hidden="true">✓</span>
+          </button>
+          <button class="member-card selected" type="button" data-agent="lyra" aria-pressed="true" aria-label="Toggle Lyra, creative strategist">
+            <span class="member-photo-wrap"><img class="member-photo" src="assets/lyra.jpg" alt=""/><span class="photo-glow"></span><span class="member-mark">LYRA</span></span><span class="member-info"><span class="member-name-row"><span class="member-name">Lyra</span></span><span class="member-role">Creative strategist</span><span class="member-description">Shapes memorable framing and audience-first concepts.</span><span class="member-status" data-status-for="lyra"><i class="status-dot"></i><span>Ready</span></span></span><span class="check-indicator" aria-hidden="true">✓</span>
+          </button>
+          <button class="member-card selected" type="button" data-agent="atlas" aria-pressed="true" aria-label="Toggle Atlas, research analyst">
+            <span class="member-photo-wrap"><img class="member-photo" src="assets/atlas.jpg" alt=""/><span class="photo-glow"></span><span class="member-mark">ATLAS</span></span><span class="member-info"><span class="member-name-row"><span class="member-name">Atlas</span></span><span class="member-role">Research analyst</span><span class="member-description">Structures questions, evidence needs, and decision criteria.</span><span class="member-status" data-status-for="atlas"><i class="status-dot"></i><span>Ready</span></span></span><span class="check-indicator" aria-hidden="true">✓</span>
+          </button>
+          <button class="member-card selected" type="button" data-agent="sage" aria-pressed="true" aria-label="Toggle Sage, critical reviewer">
+            <span class="member-photo-wrap"><img class="member-photo" src="assets/sage.jpg" alt=""/><span class="photo-glow"></span><span class="member-mark">SAGE</span></span><span class="member-info"><span class="member-name-row"><span class="member-name">Sage</span></span><span class="member-role">Critical reviewer</span><span class="member-description">Stress-tests assumptions, risks, and reversible next steps.</span><span class="member-status" data-status-for="sage"><i class="status-dot"></i><span>Ready</span></span></span><span class="check-indicator" aria-hidden="true">✓</span>
+          </button>
+        </div>
+        <div class="team-divider"></div>
+        <div class="panel-section-title"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5 14 5l2.5-.2.9 2.3 2.1 1.4-.7 2.4.7 2.4-2.1 1.4-.9 2.3L14 17l-2 1.5L10 17l-2.5.2-.9-2.3-2.1-1.4.7-2.4-.7-2.4 2.1-1.4.9-2.3L10 5l2-1.5Z" stroke="currentColor" stroke-width="1.4"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Flow guardrails</div>
+        <div class="guardrail-card">
+          <div class="guardrail-line"><span class="guardrail-check">✓</span><span>Nova always stays in the flow</span></div>
+          <div class="guardrail-line"><span class="guardrail-check dim">↗</span><span id="parallelGuardrail">3 specialist handoffs</span></div>
+          <div class="guardrail-line"><span class="guardrail-check dim">◌</span><span>Review the example notes before using</span></div>
+        </div>
+        <div class="panel-foot">Portraits and roles are concept personas for this local interface. No model calls, persistence, web search, or external tools are connected.</div>
+      </aside>
+    </div>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      const agents = {
+        nova: { name: 'Nova', role: 'Coordinator', image: 'assets/nova.jpg' },
+        lyra: { name: 'Lyra', role: 'Creative strategist', image: 'assets/lyra.jpg' },
+        atlas: { name: 'Atlas', role: 'Research analyst', image: 'assets/atlas.jpg' },
+        sage: { name: 'Sage', role: 'Critical reviewer', image: 'assets/sage.jpg' }
+      };
+      const modes = {
+        balanced: { label: 'Balanced', agents: ['nova', 'lyra', 'atlas', 'sage'] },
+        research: { label: 'Research lens', agents: ['nova', 'atlas', 'sage'] },
+        strategy: { label: 'Strategy room', agents: ['nova', 'atlas', 'sage', 'lyra'] },
+        creative: { label: 'Creative sprint', agents: ['nova', 'lyra', 'sage'] }
+      };
+      const taskPresets = {
+        launch: 'Plan a thoughtful launch for a neighborhood refill shop. Include a clear audience, a memorable message, and a practical first-week rollout.',
+        research: 'Create a research brief for evaluating a new subscription offer. Identify the questions to investigate, evidence to seek, and assumptions not to treat as facts.',
+        decision: 'Help me decide whether to expand a small team this quarter. Compare the upside, trade-offs, risks, and a low-cost way to test the decision.',
+        creative: 'Develop a fresh concept for a community event that helps new neighbors meet. Make it welcoming, memorable, and feasible on a modest budget.'
+      };
+      const byId = id => document.getElementById(id);
+      const input = byId('flowInput');
+      const form = byId('flowForm');
+      const runButton = byId('runButton');
+      const runList = byId('runList');
+      const welcomeCard = byId('welcomeCard');
+      const toast = byId('toast');
+      const active = new Set(['nova', 'lyra', 'atlas', 'sage']);
+      let currentMode = 'balanced';
+      let running = false;
+      let runNumber = 0;
+      let runEpoch = 0;
+      let toastTimer;
+      let selectedTask = '';
+
+      const byAgent = {
+        lyra: () => 'Creative lens — anchor on one vivid, ownable message. Give the audience a small action that makes the idea tangible and easy to remember.',
+        atlas: () => 'Analysis lens — separate confirmed context from assumptions. List the evidence and source checks needed before treating any claim as fact. No external research was performed.',
+        sage: () => 'Challenge lens — test dependencies, edge cases, and the cost of being wrong. Start with the smallest reversible experiment that could change the decision.'
+      };
+      const clipped = text => text.length > 145 ? `${text.slice(0, 142).trimEnd()}…` : text;
+      const synthesisText = (prompt, mode, selected) => {
+        const specialists = selected.map(id => agents[id].name).join(', ');
+        const lines = [
+          `OUTCOME\nClarify the result you want from: “${clipped(prompt)}”`,
+          `COMBINED VIEW\n${selected.length ? `${specialists} contribute distinct perspectives; keep the recommendation focused on one audience, one useful outcome, and one next move.` : 'Nova is coordinating this example flow without specialist perspectives; use the brief to define the outcome and immediate next step.'}`,
+          `REVIEW BEFORE ACTING\nValidate the key assumptions and any facts that would affect the decision${mode !== 'balanced' ? `; apply the ${modes[mode].label.toLowerCase()} lens` : ''}. This demo has not verified information or performed research.`,
+          'SUGGESTED NEXT STEP\nChoose one small, measurable action to test first; decide what evidence would mean continue, revise, or stop.'
+        ];
+        return lines.join('\n\n');
+      };
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 2300);
+      }
+      function setTaskPreset(id) {
+        selectedTask = id;
+        document.querySelectorAll('.task-preset').forEach(button => {
+          const selected = button.dataset.task === id;
+          button.classList.toggle('active', selected);
+          button.setAttribute('aria-pressed', String(selected));
+        });
+      }
+      function updateTeam() {
+        document.querySelectorAll('.member-card').forEach(card => {
+          const id = card.dataset.agent;
+          const chosen = active.has(id);
+          card.classList.toggle('selected', chosen);
+          card.classList.toggle('disabled', !chosen);
+          card.setAttribute('aria-pressed', String(chosen));
+          const label = card.querySelector(`[data-status-for="${id}"] span`);
+          const status = card.querySelector(`[data-status-for="${id}"]`);
+          if (label && !running) label.textContent = id === 'nova' ? 'Always included' : (chosen ? 'Ready' : 'Not selected');
+          if (status && !running) { status.classList.toggle('off', !chosen && id !== 'nova'); status.classList.remove('running', 'done'); }
+        });
+        const experts = [...active].filter(id => id !== 'nova');
+        byId('memberCount').textContent = `${active.size} / 4`;
+        byId('readyCount').textContent = `${active.size} ${active.size === 1 ? 'persona' : 'personas'} ready`;
+        byId('specialistMeta').textContent = experts.length ? experts.map(id => agents[id].name).join(' · ') : 'Nova only';
+        byId('parallelGuardrail').textContent = `${experts.length} specialist ${experts.length === 1 ? 'handoff' : 'handoffs'}`;
+      }
+      function setMode(mode) {
+        if (!modes[mode] || running) return;
+        currentMode = mode;
+        active.clear();
+        modes[mode].agents.forEach(id => active.add(id));
+        document.querySelectorAll('[data-mode]').forEach(button => {
+          const selected = button.dataset.mode === mode;
+          button.classList.toggle('active', selected);
+          button.setAttribute('aria-pressed', String(selected));
+        });
+        updateTeam();
+        resetMap();
+      }
+      function setAgentStatus(id, state, label) {
+        const status = document.querySelector(`[data-status-for="${id}"]`);
+        if (!status) return;
+        status.classList.remove('running', 'done', 'off');
+        if (state) status.classList.add(state);
+        status.querySelector('span').textContent = label;
+        const card = document.querySelector(`.member-card[data-agent="${id}"]`);
+        if (card) card.classList.toggle('active', state === 'running');
+      }
+      function resetMap() {
+        ['mapBrief','mapNova','mapSpecialists','mapSynthesis'].forEach(id => byId(id).classList.remove('active','done'));
+        ['linkBrief','linkNova','linkSynthesis'].forEach(id => byId(id).classList.remove('lit'));
+      }
+      function setStage(stage) {
+        resetMap();
+        if (stage === 'routing') { byId('mapBrief').classList.add('done'); byId('linkBrief').classList.add('lit'); byId('mapNova').classList.add('active'); }
+        if (stage === 'handoff') { byId('mapBrief').classList.add('done'); byId('mapNova').classList.add('done'); byId('linkBrief').classList.add('lit'); byId('linkNova').classList.add('lit'); byId('mapSpecialists').classList.add('active'); }
+        if (stage === 'synthesis') { byId('mapBrief').classList.add('done'); byId('mapNova').classList.add('done'); byId('mapSpecialists').classList.add('done'); byId('linkBrief').classList.add('lit'); byId('linkNova').classList.add('lit'); byId('linkSynthesis').classList.add('lit'); byId('mapSynthesis').classList.add('active'); }
+        if (stage === 'complete') { ['mapBrief','mapNova','mapSpecialists','mapSynthesis'].forEach(id => byId(id).classList.add('done')); ['linkBrief','linkNova','linkSynthesis'].forEach(id => byId(id).classList.add('lit')); }
+      }
+      function makeOutputCard(id) {
+        const card = document.createElement('article');
+        card.className = 'output-card pending';
+        card.dataset.output = id;
+        const top = document.createElement('div'); top.className = 'output-top';
+        const image = document.createElement('img'); image.className = 'output-avatar'; image.src = agents[id].image; image.alt = '';
+        const nameWrap = document.createElement('div');
+        const name = document.createElement('div'); name.className = 'output-name'; name.textContent = agents[id].name;
+        const role = document.createElement('div'); role.className = 'output-role'; role.textContent = agents[id].role;
+        nameWrap.append(name, role);
+        const tag = document.createElement('span'); tag.className = 'output-tag'; tag.textContent = 'QUEUED';
+        top.append(image, nameWrap, tag);
+        const text = document.createElement('div'); text.className = 'output-text';
+        const waiting = document.createElement('div'); waiting.className = 'output-waiting'; waiting.innerHTML = 'Awaiting handoff <span class="waiting-dots"><i></i><i></i><i></i></span>';
+        text.append(waiting); card.append(top, text);
+        return card;
+      }
+      function setOutput(card, text, state) {
+        card.classList.remove('pending','active');
+        if (state === 'active') card.classList.add('active');
+        const tag = card.querySelector('.output-tag');
+        tag.textContent = state === 'active' ? 'WORKING' : 'SAMPLE NOTE';
+        const body = card.querySelector('.output-text'); body.textContent = text;
+      }
+      function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+      function makeTimelineStep(id, label) {
+        const row = document.createElement('div'); row.className = 'timeline-step'; row.dataset.step = id;
+        const mark = document.createElement('span'); mark.className = 'timeline-mark'; mark.textContent = '·';
+        const title = document.createElement('span'); title.textContent = label;
+        const detail = document.createElement('span'); detail.className = 'timeline-detail'; detail.textContent = 'Queued';
+        row.append(mark, title, detail); return row;
+      }
+      function markStep(row, state, detail) {
+        if (!row) return;
+        row.classList.remove('active','done');
+        row.classList.add(state);
+        row.querySelector('.timeline-mark').textContent = state === 'done' ? '✓' : '•';
+        row.querySelector('.timeline-detail').textContent = detail;
+      }
+      function createRun(prompt, experts) {
+        const article = document.createElement('article'); article.className = 'run-card';
+        const head = document.createElement('div'); head.className = 'run-head';
+        const runId = document.createElement('div'); runId.className = 'run-id';
+        const mark = document.createElement('span'); mark.className = 'run-id-mark'; mark.textContent = '✳';
+        const label = document.createElement('span'); label.textContent = `Run ${String(runNumber).padStart(2,'0')} · ${modes[currentMode].label}`;
+        runId.append(mark,label);
+        const badge = document.createElement('span'); badge.className = 'run-badge'; badge.innerHTML = '<span class="live-dot"></span><span>Demo running</span>';
+        head.append(runId,badge);
+        const task = document.createElement('div'); task.className = 'task-block';
+        const meta = document.createElement('div'); meta.className = 'task-meta'; meta.innerHTML = '<span>YOUR BRIEF</span><span>·</span><span>Editable input</span>';
+        const taskText = document.createElement('div'); taskText.className = 'task-text'; taskText.textContent = prompt;
+        task.append(meta,taskText);
+        const progress = document.createElement('div'); progress.className = 'run-progress';
+        const ring = document.createElement('span'); ring.className = 'progress-ring';
+        const progressText = document.createElement('span'); progressText.textContent = 'Nova is receiving the brief…';
+        progress.append(ring,progressText);
+        const handoff = document.createElement('div'); handoff.className = 'handoff-strip';
+        const handoffLabel = document.createElement('span'); handoffLabel.className = 'handoff-label'; handoffLabel.textContent = 'Handoff'; handoff.append(handoffLabel);
+        const chips = {};
+        ['nova',...experts,'synthesis'].forEach((id,index) => {
+          if (index) { const arrow = document.createElement('span'); arrow.className = 'handoff-arrow'; arrow.textContent = '→'; handoff.append(arrow); }
+          const chip = document.createElement('span'); chip.className = 'handoff-chip'; chip.dataset.handoff = id;
+          chip.textContent = id === 'synthesis' ? 'Nova · synthesis' : agents[id].name;
+          chips[id] = chip; handoff.append(chip);
+        });
+        const grid = document.createElement('div'); grid.className = 'agent-output-grid';
+        const outputs = { nova: makeOutputCard('nova') };
+        grid.append(outputs.nova);
+        experts.forEach(id => { outputs[id] = makeOutputCard(id); grid.append(outputs[id]); });
+        const timeline = document.createElement('section'); timeline.className = 'timeline';
+        const timelineTitle = document.createElement('div'); timelineTitle.className = 'timeline-title'; timelineTitle.textContent = 'Run trace'; timeline.append(timelineTitle);
+        const steps = {};
+        [['nova','Nova scopes the brief'],...experts.map(id => [id,`Handoff → ${agents[id].name}`]),['synthesis','Nova synthesizes the review']].forEach(([id,text]) => { steps[id] = makeTimelineStep(id,text); timeline.append(steps[id]); });
+        article.append(head,task,progress,handoff,grid,timeline);
+        return { article, badge, progress, progressText, outputs, steps, chips };
+      }
+      async function playRun(prompt, selectedExperts, view, epoch) {
+        const valid = () => epoch === runEpoch;
+        const { outputs, steps, chips, progress, progressText } = view;
+        setStage('routing');
+        chips.nova.classList.add('active');
+        markStep(steps.nova,'active','Coordinating');
+        setAgentStatus('nova','running','Scoping brief');
+        progressText.textContent = 'Nova is framing the brief and routing the first handoff…';
+        await wait(700); if (!valid()) return;
+        const names = selectedExperts.length ? selectedExperts.map(id => agents[id].name).join(', ') : 'no specialists selected';
+        setOutput(outputs.nova, `Coordinator note — I’ve framed the brief as a single outcome and queued ${names}. The notes below are scripted examples, not model responses.`, 'done');
+        chips.nova.classList.remove('active'); chips.nova.classList.add('done');
+        markStep(steps.nova,'done','Brief scoped'); setAgentStatus('nova','done','Handoff ready');
+        if (selectedExperts.length) {
+          for (const id of selectedExperts) {
+            if (!valid()) return;
+            setStage('handoff');
+            chips[id].classList.add('active');
+            const output = outputs[id]; output.classList.remove('pending'); output.classList.add('active');
+            output.querySelector('.output-tag').textContent = 'WORKING';
+            output.querySelector('.output-text').innerHTML = 'Reviewing the brief <span class="waiting-dots"><i></i><i></i><i></i></span>';
+            markStep(steps[id],'active',`Nova → ${agents[id].name}`);
+            setAgentStatus(id,'running','Receiving handoff');
+            progressText.textContent = `Nova → ${agents[id].name}: specialist handoff in progress…`;
+            await wait(880); if (!valid()) return;
+            setOutput(output,byAgent[id](prompt,currentMode),'done');
+            chips[id].classList.remove('active'); chips[id].classList.add('done');
+            markStep(steps[id],'done','Perspective returned');
+            setAgentStatus(id,'done','Contribution ready');
+            await wait(180); if (!valid()) return;
+          }
+        } else {
+          progressText.textContent = 'Nova is reviewing the brief without specialist handoffs…';
+          await wait(350); if (!valid()) return;
+        }
+        setStage('synthesis');
+        chips.synthesis.classList.add('active');
+        markStep(steps.synthesis,'active','Nova reviews inputs');
+        setAgentStatus('nova','running','Synthesizing');
+        progressText.textContent = 'Specialist perspectives returned. Nova is preparing a review…';
+        await wait(650); if (!valid()) return;
+        const synthesis = document.createElement('section'); synthesis.className = 'synthesis';
+        const synHead = document.createElement('div'); synHead.className = 'synthesis-head';
+        const synIcon = document.createElement('span'); synIcon.className = 'synthesis-icon'; synIcon.textContent = 'N';
+        const synWrap = document.createElement('div');
+        const synTitle = document.createElement('div'); synTitle.className = 'synthesis-title'; synTitle.textContent = 'Nova’s review-ready synthesis';
+        const synSub = document.createElement('div'); synSub.className = 'synthesis-sub'; synSub.textContent = 'Scripted demo text · review and verify before using';
+        synWrap.append(synTitle,synSub); synHead.append(synIcon,synWrap);
+        const synText = document.createElement('div'); synText.className = 'synthesis-text'; synText.textContent = synthesisText(prompt,currentMode,selectedExperts);
+        const actions = document.createElement('div'); actions.className = 'synthesis-actions';
+        const copy = document.createElement('button'); copy.className = 'copy-button'; copy.type = 'button'; copy.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.5"/></svg>Copy synthesis';
+        copy.addEventListener('click',async () => { try { await navigator.clipboard.writeText(synText.textContent); showToast('Synthesis copied'); } catch { showToast('Clipboard is unavailable in this preview'); } });
+        actions.append(copy); synthesis.append(synHead,synText,actions); view.article.append(synthesis);
+        chips.synthesis.classList.remove('active'); chips.synthesis.classList.add('done');
+        markStep(steps.synthesis,'done','Review complete');
+        progress.classList.add('complete'); progressText.textContent = 'Demo flow complete · all notes are scripted';
+        view.badge.classList.add('done'); view.badge.querySelector('span:last-child').textContent = 'Complete · demo';
+        setStage('complete');
+        selectedExperts.forEach(id => setAgentStatus(id,'done','Sample ready'));
+        setAgentStatus('nova','done','Flow complete');
+        running = false; updateTeam();
+        runButton.disabled = !input.value.trim();
+        byId('centerScroll').scrollTo({ top: byId('centerScroll').scrollHeight, behavior: 'smooth' });
+      }
+      function startFlow(rawPrompt) {
+        const prompt = rawPrompt.trim();
+        if (!prompt || running) return;
+        const selectedExperts = [...active].filter(id => id !== 'nova');
+        running = true; runNumber += 1; runEpoch += 1;
+        welcomeCard.hidden = true;
+        runButton.disabled = true;
+        input.value = ''; input.style.height = 'auto';
+        setTaskPreset('');
+        document.querySelectorAll('.member-card').forEach(card => { if (!active.has(card.dataset.agent)) setAgentStatus(card.dataset.agent,'off','Not selected'); });
+        const view = createRun(prompt,selectedExperts);
+        runList.prepend(view.article);
+        byId('runCount').textContent = String(runNumber).padStart(2,'0');
+        updateTeam();
+        byId('centerScroll').scrollTo({ top: byId('centerScroll').scrollHeight, behavior: 'smooth' });
+        playRun(prompt,selectedExperts,view,runEpoch);
+      }
+      function resetFlow() {
+        if (running) { showToast('Let the current demo flow finish before clearing runs'); return; }
+        runEpoch += 1; runNumber = 0; runList.replaceChildren(); welcomeCard.hidden = false;
+        input.value = ''; input.style.height = 'auto'; runButton.disabled = true; byId('runCount').textContent = '00';
+        setTaskPreset(''); resetMap(); updateTeam();
+        showToast('Run history cleared');
+      }
+      document.querySelectorAll('.mode-button, .flow-nav').forEach(button => button.addEventListener('click',() => setMode(button.dataset.mode)));
+      document.querySelectorAll('.task-preset').forEach(button => button.addEventListener('click',() => {
+        if (running) return;
+        const id = button.dataset.task; input.value = taskPresets[id]; setTaskPreset(id);
+        input.style.height = 'auto'; input.style.height = `${Math.min(input.scrollHeight,96)}px`;
+        runButton.disabled = false; input.focus(); showToast(`${button.querySelector('.task-name').textContent} prompt loaded — edit it before running`);
+      }));
+      document.querySelectorAll('.member-card').forEach(card => card.addEventListener('click',() => {
+        const id = card.dataset.agent;
+        if (id === 'nova' || running) return;
+        if (active.has(id)) active.delete(id); else active.add(id);
+        updateTeam();
+      }));
+      form.addEventListener('submit',event => { event.preventDefault(); startFlow(input.value); });
+      input.addEventListener('input',() => {
+        input.style.height = 'auto'; input.style.height = `${Math.min(input.scrollHeight,96)}px`;
+        runButton.disabled = !input.value.trim() || running;
+        if (selectedTask && input.value !== taskPresets[selectedTask]) setTaskPreset('');
+      });
+      input.addEventListener('keydown',event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); startFlow(input.value); } });
+      byId('sampleButton').addEventListener('click',() => { input.value = taskPresets.launch; setTaskPreset('launch'); input.style.height = 'auto'; input.style.height = `${Math.min(input.scrollHeight,96)}px`; runButton.disabled = false; input.focus(); showToast('Sample brief loaded — run it or edit first'); });
+      byId('resetButton').addEventListener('click',resetFlow);
+      byId('newFlowSmall').addEventListener('click',resetFlow);
+      byId('runsNav').addEventListener('click',() => { byId('centerScroll').scrollTo({ top: byId('runArea').offsetTop, behavior: 'smooth' }); if (runNumber === 0) showToast('Completed demo runs will appear here'); });
+      updateTeam(); resetMap();
+    })();
+  </script>
+</body>
+</html>
